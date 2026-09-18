@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('Source') {
             steps {
-                git branch: 'master', url: 'https://github.com/AlRuh-ux/ruhi-e2e-app-aws.git'
+                git branch: 'main', url: 'https://github.com/AlRuh-ux/ruhi-devops-pipeline.git'
             }
         }
 
