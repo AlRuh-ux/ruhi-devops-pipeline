@@ -1,80 +1,58 @@
-# Ruhi's End-to-End DevOps Pipeline on AWS
+# End-to-End DevOps Pipeline on AWS
 
-An end-to-end DevOps pipeline project, built from scratch, covering the full journey from Infrastructure as Code to a fully automated CI/CD deployment.
+Hands-on cloud deployment project: infrastructure as code, containerization, Kubernetes on EKS, and a Jenkins CI/CD pipeline, built from scratch.
 
-**App deployed:** 2048 (a static web game — see credits below) — containerized and deployed as the workload running through this pipeline.
+> The deployed workload is the open-source 2048 game. It is intentionally unmodified: the project is about the platform around the app, not the app.
 
-\---
+## Skills Demonstrated
 
-## What This Project Demonstrates
+| Area | What I built | Tools |
+|---|---|---|
+| Infrastructure as Code | VPC, subnets, EKS cluster, worker nodes, VPC endpoints | Terraform |
+| Containerization | Image build and push to a private registry | Docker, AWS ECR |
+| Private networking | ECR/S3 traffic kept off the public internet via VPC endpoints | AWS VPC Endpoints |
+| Kubernetes delivery | Versioned, repeatable releases | Helm, EKS |
+| Traffic exposure | Internet traffic routed to the app through a load balancer | NGINX Ingress, AWS Load Balancer |
+| CI/CD | 4-stage pipeline with credentials stored in Jenkins, not in code | Jenkins |
+| Security practices | Least-privilege IAM, no root account usage, no hardcoded secrets | AWS IAM |
 
-* **Infrastructure as Code:** AWS VPC, subnets, EKS cluster, and worker nodes — all provisioned via Terraform
-* **Containerization:** Docker image built and pushed to AWS ECR (Elastic Container Registry)
-* **Private networking:** VPC Interface/Gateway Endpoints for ECR and S3, keeping registry traffic off the public internet
-* **Kubernetes deployment:** Helm chart deploying the app to EKS
-* **Networking \& exposure:** NGINX Ingress Controller + AWS Load Balancer, routing real internet traffic to the app
-* **CI/CD automation:** Jenkins pipeline with 4 stages — Source → Build → Test → Deploy — using securely stored credentials (Jenkins Credentials store, not hardcoded secrets)
+## Architecture
 
-## Tech Stack
+```
+GitHub -> Jenkins -> Docker build -> ECR -> helm upgrade -> EKS
+                                                             |
+                              Internet -> AWS LB -> Ingress -> Service -> Pods
+```
 
-|Layer|Tool|
-|-|-|
-|Cloud Provider|AWS|
-|Infrastructure as Code|Terraform|
-|Container Runtime|Docker|
-|Container Registry|AWS ECR|
-|Orchestration|Kubernetes (AWS EKS)|
-|Package Manager|Helm|
-|Ingress / Load Balancing|NGINX Ingress Controller + AWS Load Balancer|
-|CI/CD|Jenkins|
-|Version Control|Git / GitHub|
+(Add a diagram image here when you have one: `docs/architecture.png`.)
+
+## Pipeline Stages
+
+1. **Source**: pull the latest code from GitHub
+2. **Build**: build the Docker image, authenticate to ECR, push the image
+3. **Test**: run the image in a temporary container and verify it serves the expected content
+4. **Deploy**: `helm upgrade` against the live EKS cluster with the new image
 
 ## Repository Layout
 
 ```
 .
-├── Dockerfile                  → builds the app container (nginx serving static files)
-├── Jenkinsfile                 → 4-stage CI/CD pipeline definition
-├── terraform-code/
-│   └── main.tf                 → VPC, subnets, EKS cluster, worker nodes, VPC endpoints
-├── helm/
-│   └── ruhi-2048/               → Helm chart for deploying the app to EKS
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-├── index.html, js/, style/     → the app itself (2048 game)
+├── Dockerfile          # nginx serving static files
+├── Jenkinsfile         # CI/CD pipeline definition
+├── terraform-code/     # VPC, EKS, node group, VPC endpoints
+├── helm/ruhi-2048/     # Helm chart
+└── index.html, js/, style/   # the sample app
 ```
 
-## Pipeline Stages (Jenkinsfile)
+## Known Limitations and Next Steps
 
-1. **Source** — pulls the latest code from this GitHub repo
-2. **Build** — builds the Docker image, authenticates to ECR, pushes the image
-3. **Test** — runs the built image in a temporary container and verifies it actually serves the expected content (a real smoke test, not just a health ping)
-4. **Deploy** — runs `helm upgrade` against the live EKS cluster with the newly built image
+I treat these as a live engineering backlog. Changes land on branches and are recorded in [CHANGELOG.md](CHANGELOG.md).
 
-## Status
+- [ ] **Ingress migration:** the Kubernetes community ingress-nginx controller was retired in March 2026 (no further releases or security fixes). Plan: migrate to Gateway API (or the AWS Load Balancer Controller) on a feature branch.
+- [ ] **Vulnerability scanning:** add an image and dependency scan stage (e.g. Trivy) to the Jenkins pipeline and fix findings on a branch.
+- [ ] **Pin versions:** pin base image and Helm chart versions.
+- [ ] **Remote Terraform state** with locking.
 
-✅ Complete — full pipeline runs end-to-end successfully (Source → Build → Test → Deploy, all passing)
+## Credits
 
-## Roadmap (completed)
-
-* \[x] Local tooling setup (Git, Docker, kubectl, Terraform, Helm)
-* \[x] AWS account + IAM setup (least-privilege access, no root usage)
-* \[x] Terraform: VPC, subnets, EKS cluster, worker nodes
-* \[x] Docker image built and pushed to ECR
-* \[x] VPC Endpoints for private ECR/S3 access
-* \[x] Helm chart deployment to EKS
-* \[x] NGINX Ingress + AWS Load Balancer
-* \[x] Jenkins CI/CD pipeline (4 stages, secure credentials)
-
-\---
-
-## Credits (original app)
-
-This project deploys **2048**, a small clone of [1024](https://play.google.com/store/apps/details?id=com.veewo.a1024), based on [Saming's 2048](http://saming.fr/p/2048/) (also a clone), originally created by [Gabriele Cirulli](http://gabrielecirulli.com). The game itself is unmodified — this project's focus is the infrastructure and deployment pipeline around it, not the game's code.
-
-Original repository: https://github.com/gabrielecirulli/2048
-Licensed under the [MIT license](./LICENSE.txt).
-
-
-
+The 2048 game is by [Gabriele Cirulli](http://gabrielecirulli.com) ([original repo](https://github.com/gabrielecirulli/2048)), MIT licensed.
