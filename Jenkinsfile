@@ -5,6 +5,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         ECR_REPO = '555044956356.dkr.ecr.us-east-1.amazonaws.com/ruhi-2048-app'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        TRIVY_IMAGE = 'aquasec/trivy:0.69.3'
         AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
     }
@@ -21,6 +22,23 @@ pipeline {
                 sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
                 sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO'
                 sh 'docker push $ECR_REPO:$IMAGE_TAG'
+            }
+        }
+
+        stage('Scan') {
+            // Trivy is pinned to an exact version on purpose: never use the "latest" tag for a scanner.
+            // The image is scanned from a tar file so the Docker socket is never mounted into the scanner.
+            steps {
+                sh 'docker save $ECR_REPO:$IMAGE_TAG -o image.tar'
+                // Report HIGH and CRITICAL findings that have a fix available
+                sh 'docker run --rm -v "$WORKSPACE":/work $TRIVY_IMAGE image --input /work/image.tar --severity HIGH,CRITICAL --ignore-unfixed'
+                // Fail the pipeline on CRITICAL findings that have a fix available
+                sh 'docker run --rm -v "$WORKSPACE":/work $TRIVY_IMAGE image --input /work/image.tar --severity CRITICAL --ignore-unfixed --exit-code 1'
+            }
+            post {
+                always {
+                    sh 'rm -f image.tar'
+                }
             }
         }
 
