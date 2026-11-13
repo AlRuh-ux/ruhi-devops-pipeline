@@ -49,7 +49,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "ruhi-public-subnet-${count.index}"
+    Name                                     = "ruhi-public-subnet-${count.index}"
+    "kubernetes.io/role/elb"                 = "1"
+    "kubernetes.io/cluster/ruhi-eks-cluster" = "shared"
   }
 }
 

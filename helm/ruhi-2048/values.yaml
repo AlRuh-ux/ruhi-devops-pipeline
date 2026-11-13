@@ -56,15 +56,17 @@ service:
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 80
 
-# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+# Ingress served by the AWS Load Balancer Controller (creates an AWS Application Load Balancer).
+# Replaces ingress-nginx, which was retired in March 2026.
 ingress:
   enabled: true
-  className: "nginx"
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
   hosts:
-    - host: ruhi-2048.local
+    - host: ""
       paths:
         - path: /
           pathType: Prefix
