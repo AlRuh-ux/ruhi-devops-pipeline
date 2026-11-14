@@ -6,6 +6,7 @@ pipeline {
         ECR_REPO = '555044956356.dkr.ecr.us-east-1.amazonaws.com/ruhi-2048-app'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         TRIVY_IMAGE = 'aquasec/trivy:0.69.3'
+        EKS_CLUSTER = 'ruhi-eks-cluster'
         AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
     }
@@ -67,6 +68,9 @@ pipeline {
 
         stage('Deploy') {
             steps {
+                // Fetch fresh connection details for the current EKS cluster on every run,
+                // so the pipeline keeps working after the cluster is destroyed and rebuilt.
+                sh 'aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION'
                 sh 'helm upgrade ruhi-2048 ./helm/ruhi-2048 --namespace ruhi-2048 --set image.tag=$IMAGE_TAG'
             }
         }

@@ -61,11 +61,21 @@ resource "helm_release" "aws_load_balancer_controller" {
   ]
 }
 
+# The controller creates the load balancer and its security groups itself, so Terraform does not
+# track them. On destroy, the app (and its Ingress) is removed first. This pause then keeps the
+# controller running while it deletes its load balancer and security groups, and only after that
+# does Terraform remove the controller and the VPC. Nothing happens on create (no delay).
+resource "time_sleep" "wait_for_alb_cleanup" {
+  destroy_duration = "5m"
+
+  depends_on = [helm_release.aws_load_balancer_controller]
+}
+
 resource "helm_release" "ruhi_2048" {
   name             = "ruhi-2048"
   chart            = "../helm/ruhi-2048"
   namespace        = "ruhi-2048"
   create_namespace = true
 
-  depends_on = [helm_release.aws_load_balancer_controller]
+  depends_on = [time_sleep.wait_for_alb_cleanup]
 }
