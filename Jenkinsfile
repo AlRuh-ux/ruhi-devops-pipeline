@@ -27,13 +27,26 @@ pipeline {
 
         stage('Scan') {
             // Trivy is pinned to an exact version on purpose: never use the "latest" tag for a scanner.
-            // The image is scanned from a tar file so the Docker socket is never mounted into the scanner.
+            // The image is saved to a tar file and copied into the scanner container with "docker cp".
+            // Jenkins itself runs in a container, so a bind mount of its workspace would not be visible
+            // to the Docker host. The Docker socket is never mounted into the scanner.
             steps {
                 sh 'docker save $ECR_REPO:$IMAGE_TAG -o image.tar'
-                // Report HIGH and CRITICAL findings that have a fix available
-                sh 'docker run --rm -v "$WORKSPACE":/work $TRIVY_IMAGE image --input /work/image.tar --severity HIGH,CRITICAL --ignore-unfixed'
-                // Fail the pipeline on CRITICAL findings that have a fix available
-                sh 'docker run --rm -v "$WORKSPACE":/work $TRIVY_IMAGE image --input /work/image.tar --severity CRITICAL --ignore-unfixed --exit-code 1'
+                sh '''
+                    scan() {
+                        docker rm -f trivy-scan >/dev/null 2>&1 || true
+                        docker create --name trivy-scan -v trivy-cache:/root/.cache/ $TRIVY_IMAGE image --input /tmp/image.tar --scanners vuln --no-progress --ignore-unfixed "$@" >/dev/null
+                        docker cp image.tar trivy-scan:/tmp/image.tar
+                        docker start -a trivy-scan
+                        rc=$?
+                        docker rm trivy-scan >/dev/null
+                        return $rc
+                    }
+                    # Report HIGH and CRITICAL findings that have a fix available
+                    scan --severity HIGH,CRITICAL
+                    # Fail the pipeline on CRITICAL findings that have a fix available
+                    scan --severity CRITICAL --exit-code 1
+                '''
             }
             post {
                 always {
